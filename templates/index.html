@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image</title>
+</head>
+<body>
+
+    <h1>Image</h1>
+
+    <form id="loginForm">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required>
+        <button type="button" onclick="login()">Login</button>
+    </form>
+
+    <form id="form" style="display:none;">
+        <button type="button" onclick="generateSignal()">Generate Signal Vector</button>
+        <label for="method">Choose Method:</label>
+        <select id="method" name="method" required>
+            <option value="CNGR">CNGR</option>
+            <option value="CGRE">CGRE</option>
+        </select>
+        <button type="button" onclick="sendRequest()">Generate Image</button>
+    </form>
+
+    <div id="report" style="display:none;">
+        <h2>Report</h2>
+        <p id="startTime"></p>
+        <p id="endTime"></p>
+        <p id="executionTime"></p>
+        <p id="imageId"></p>
+        <a id="downloadLink" download="generated_image.png">Download Image</a>
+        <img id="imagePreview" alt="Generated Image">
+    </div>
+
+    <div id="result"></div>
+
+    <script>
+        let username;
+        let signalVector;
+        let method;
+
+        function login() {
+            username = document.getElementById('username').value;
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('form').style.display = 'block';
+        }
+
+        function generateSignal() {
+            signalVector = generateRandomSignalVector();
+            
+            signalVector = signalGain(signalVector);
+
+            document.getElementById('result').innerHTML = 'Signal Vector Generated';
+        }
+
+        function generateRandomSignalVector() {
+            const signalVector = [];
+            for (let i = 0; i < 50816; i++) {
+                signalVector.push(Math.random());
+            }
+            return signalVector;
+        }
+
+        function signalGain(signalVector) {
+            for (let i = 0; i < signalVector.length; i++) {
+                const l = i % 794 + 1;  // Calculate the corresponding l value
+                const gammaL = 100 + (1 / (20 * l * Math.sqrt(l)));
+                signalVector[i] *= gammaL;
+            }
+            return signalVector;
+        }
+
+        function sendRequest() {
+            method = document.getElementById('method').value;
+            
+            fetch('/image/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username,
+                    signalVector: signalVector,
+                    method: method,
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                showReport(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = 'Error generating image.';
+            });
+        }
+
+        function showReport(data) {
+            document.getElementById('report').style.display = 'block';
+            
+            // Display the report information
+            document.getElementById('startTime').innerText = `Start Time: ${data.startTime}`;
+            document.getElementById('endTime').innerText = `End Time: ${data.endTime}`;
+            document.getElementById('executionTime').innerText = `Execution Time: ${data.executionTime} milliseconds`;
+            document.getElementById('imageId').innerText = `Image ID: ${data.id}`;
+
+            // Display the image
+            const imageBlob = new Blob([data.image], { type: 'image/png' });
+            const imageUrl = URL.createObjectURL(imageBlob);
+            document.getElementById('imagePreview').src = imageUrl;
+
+            // Enable the download link
+            const downloadLink = document.getElementById('downloadLink');
+            downloadLink.href = imageUrl;
+            downloadLink.style.display = 'block';
+        }
+    </script>
+
+</body>
+</html>
